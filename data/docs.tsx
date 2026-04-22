@@ -15,6 +15,14 @@ export type DiagramKey =
   | "collection-dataflow"
   | "governance";
 
+export interface PieceMapping {
+  stage: string;
+  piece: string;
+  action: string;
+  logoSrc: string;
+  why: string;
+}
+
 export interface DocSection {
   id: string;
   kicker: string;
@@ -22,6 +30,7 @@ export interface DocSection {
   summary: string;
   paragraphs?: string[];
   bullets?: string[];
+  pieces?: PieceMapping[];
   diagram?: DiagramKey;
   calloutTitle?: string;
   calloutBody?: string;
@@ -310,116 +319,205 @@ const DOC_PAGES: DocPage[] = [
     title: "RCA Generation",
     kicker: "Use Case 02",
     summary:
-      "Neutrino automates the initial Root Cause Analysis chronology by collecting system logs from connected sources, correlating events across time and service boundaries, and drafting a structured RCA timeline that operators can review, refine, and attach to incident records.",
+      "Neutrino turns raw observability evidence into a reviewed, structured Root Cause Analysis chronology. A workflow scopes the incident time window, retrieves logs and monitoring records, normalizes them into a canonical event model, drafts a chronological narrative through a governed LLM step, computes confidence signals, and persists the reviewed RCA artifact back into the incident record.",
     stats: [
       {
-        label: "Log sources",
-        value: "Syslog, CMDB, Zabbix",
-        copy: "Operational logs from separate monitoring and inventory systems are pulled into one analysis context.",
+        label: "Analysis step",
+        value: "LLM-drafted chronology",
+        copy: "The reasoning stage uses a governed LLM call over normalized evidence, not a hand-written Code block.",
       },
       {
-        label: "Analysis artifact",
-        value: "Chronological RCA draft",
-        copy: "The output is an ordered timeline of contributing events, not a raw log dump or unstructured summary.",
+        label: "Review model",
+        value: "Approval gate + persistence",
+        copy: "The draft chronology is held at a wait-for-approval step before it is stored and published to the incident workspace.",
       },
       {
         label: "Operator outcome",
-        value: "Review-ready chronology",
-        copy: "Operators receive a structured first draft they can validate and refine instead of building the timeline from scratch.",
+        value: "Structured RCA artifact",
+        copy: "Operators receive an ordered causal timeline with probable root cause and confidence signals attached to the incident.",
       },
     ],
     badges: [
-      "Implemented in Neutrino",
-      "Log-driven chronology",
-      "Cross-system correlation",
-      "Workflow-backed generation",
+      "LLM-backed analysis",
+      "Canonical field mapping",
+      "Approval-gated publish",
+      "Observability emit",
       "Architecture documented",
     ],
     sections: [
       {
         id: "document-purpose",
         kicker: "1. Purpose",
-        title: "Document objective and implementation statement",
+        title: "Document objective and scope",
         summary:
-          "This document describes how Neutrino generates the initial Root Cause Analysis chronology from system logs. The implemented workflow collects log records from connected sources, correlates events by time, host, and service, and produces a structured RCA timeline that operators can review before attaching it to the incident record.",
+          "This document describes how Neutrino generates a reviewed RCA chronology from system logs and monitoring evidence. Unlike data collection, which assembles a unified source view, RCA generation performs an explicit analysis step: it reasons over the normalized evidence with a governed LLM call, computes confidence signals, holds the draft at an approval gate, and then persists the approved artifact.",
         bullets: [
-          "Syslog provides machine-level, network, and application event records with timestamps.",
-          "CMDB provides asset metadata, ownership context, and service dependency relationships.",
-          "Zabbix provides monitoring alerts, availability signals, and affected host context.",
-          "Neutrino correlates these inputs into an ordered RCA chronology with causal chain entries.",
-          "The generated chronology becomes part of the incident record and feeds downstream remediation workflows.",
+          "Scope an incident-specific time window from the trigger payload using a date helper.",
+          "Retrieve log records from a log database and monitoring APIs covering the window.",
+          "Normalize raw text, then map the resulting fields into a canonical event schema.",
+          "Draft a causal chronology through a governed LLM step configured with structured-output guidance.",
+          "Compute confidence signals over the normalized event set to accompany the narrative.",
+          "Hold the draft at an approval step, persist on approve, and emit back to the operator view plus the observability stack.",
         ],
         calloutTitle: "Implementation note",
         calloutBody:
-          "This page documents the RCA generation capability as implemented: the workflow is built, the chronology output format is established, and operators can review and refine the generated timeline through the Neutrino incident workspace.",
+          "The automation is composed from first-party embedded-workflow pieces. The LLM reasoning step, the approval gate, the persistence step, and the observability emit are all discrete, auditable node types in the workflow graph, not hidden behind custom code.",
       },
       {
         id: "high-level-design",
         kicker: "2. High-Level Design",
         title: "System architecture for RCA chronology generation",
         summary:
-          "The implemented design uses Neutrino as the orchestration layer for RCA generation. Source systems provide raw log data, while correlation, timeline construction, and chronology formatting are executed through Neutrino-controlled workflow steps. The output is a structured RCA draft that operators can review before it becomes part of the formal incident record.",
+          "The implemented design organizes RCA generation into four explicit stages — retrieval, normalization, analysis, and review & publish. Each stage maps directly to first-party workflow pieces rather than generic code, so the automation is both auditable and replaceable stage by stage.",
         bullets: [
-          "External systems expose log streams, monitoring alerts, and asset inventory data.",
-          "Neutrino Workflows coordinate retrieval of relevant log windows from each source system.",
-          "Normalization steps convert source-specific log formats into a common timestamped event model.",
-          "Correlation logic groups related events by time proximity, affected host, service, and error signature.",
-          "The RCA engine drafts a chronological narrative with contributing events, probable root cause, and confidence signals.",
-          "The resulting chronology is persisted as a reviewable RCA artifact attached to the incident.",
+          "Retrieval stage scopes the time window and pulls evidence from the log database and monitoring systems.",
+          "Normalization stage strips markup noise and projects source payloads into a canonical event schema.",
+          "Analysis stage runs the LLM chronology draft and produces confidence aggregates over the normalized events.",
+          "Review and publish stage gates the draft at human approval, persists the artifact in the workflow store, posts it to the Neutrino incident view, and emits an evidence log to the observability stack.",
+          "The entire automation is expressed as a single linear workflow graph with explicit parallel source calls, not as an opaque analysis service.",
         ],
         diagram: "rca-hld",
-        calloutTitle: "Documentation stance",
+        calloutTitle: "Why four stages",
         calloutBody:
-          "Keep the HLD framed around Neutrino-native RCA capabilities. The workflow layer should be shown as part of the Neutrino analysis engine, not as a separate branded product.",
+          "The extra Analysis and Review stages are what distinguishes RCA from data collection. Data collection ends at normalized merge. RCA keeps going: it reasons, scores, approves, persists, and emits.",
+      },
+      {
+        id: "piece-composition",
+        kicker: "3. Piece Composition",
+        title: "Stage-to-piece mapping",
+        summary:
+          "Every operational stage in the RCA workflow is satisfied by a specific first-party embedded-workflow piece and action. This table is the authoritative map from narrative stage to executable node and is what makes the automation inspectable end-to-end.",
+        pieces: [
+          {
+            stage: "Incident trigger",
+            piece: "Webhook",
+            action: "catch-hook",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg",
+            why: "Receives the incident event and its correlation identifiers as the entry point of the workflow run.",
+          },
+          {
+            stage: "Time-window scoping",
+            piece: "Date Helper",
+            action: "format-date / add-subtract-date",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/date-helper.svg",
+            why: "Derives start and end timestamps for the retrieval query off the trigger timestamp so evidence stays incident-scoped.",
+          },
+          {
+            stage: "Log database retrieval",
+            piece: "Postgres",
+            action: "run-query",
+            logoSrc: "https://cdn.activepieces.com/pieces/postgres.png",
+            why: "Executes a parameterized query against the log database for records in the scoped time window.",
+          },
+          {
+            stage: "Monitoring / Syslog fetch",
+            piece: "HTTP",
+            action: "send-request",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg",
+            why: "Calls Syslog and Zabbix APIs for events and alerts covering the same window. Used wherever a system does not have a first-party retrieval piece.",
+          },
+          {
+            stage: "Text normalization",
+            piece: "Text Helper",
+            action: "strip-html / split / replace",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/text-helper.svg",
+            why: "Removes markup, splits multi-line records, and cleans raw log lines before field mapping.",
+          },
+          {
+            stage: "Canonical field mapping",
+            piece: "Data Mapper",
+            action: "advanced-mapping",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/data-mapper.svg",
+            why: "Projects heterogeneous source payloads into a common event schema (timestamp, host, service, severity, signature).",
+          },
+          {
+            stage: "RCA chronology drafting",
+            piece: "Azure OpenAI",
+            action: "ask-gpt",
+            logoSrc: "https://cdn.activepieces.com/pieces/azure-openai.png",
+            why: "Runs the governed LLM reasoning step with a structured-output prompt over the normalized events to draft the causal chronology.",
+          },
+          {
+            stage: "Confidence signals",
+            piece: "Data Summarizer",
+            action: "count-uniques / get-min-max",
+            logoSrc: "https://cdn.activepieces.com/pieces/data-summarizer.svg",
+            why: "Computes aggregate statistics over the normalized event set to accompany the draft narrative as confidence and coverage metrics.",
+          },
+          {
+            stage: "Review gate",
+            piece: "Approval",
+            action: "wait-for-approval",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/approvals.svg",
+            why: "Pauses the workflow with a reviewer link until an operator approves or rejects the drafted chronology.",
+          },
+          {
+            stage: "Artifact persistence",
+            piece: "Store",
+            action: "store-put",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/store.svg",
+            why: "Writes the approved RCA chronology to workflow-scoped storage as a first-class, addressable artifact.",
+          },
+          {
+            stage: "Publish to operator view",
+            piece: "HTTP",
+            action: "send-request (POST)",
+            logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg",
+            why: "Pushes the persisted chronology into the Neutrino incident workspace as an operator-facing record.",
+          },
+          {
+            stage: "Observability emit",
+            piece: "Datadog",
+            action: "send-multiple-logs",
+            logoSrc: "https://cdn.activepieces.com/pieces/datadog.png",
+            why: "Fans the RCA evidence out to the observability stack as a structured log so downstream tools can index the finding.",
+          },
+        ],
       },
       {
         id: "workflow-node-model",
-        kicker: "3. Workflow Node Model",
-        title: "Implemented workflow design for RCA chronology generation",
+        kicker: "4. Workflow Node Model",
+        title: "Executable node graph",
         summary:
-          "The RCA generation automation is implemented as a node-based workflow with explicit log collection, normalization, correlation, chronology drafting, and review stages. Each stage maps to a real workflow node type, making the design traceable and auditable.",
+          "The RCA workflow graph renders the piece composition above as a single executable DAG. The four lanes — retrieval, normalization, analysis, and review & publish — are visible in the graph so the automation stays readable as a delivery artifact.",
         bullets: [
-          "Trigger node starts the RCA generation flow when an incident is created or escalated.",
-          "Source retrieval nodes call Syslog, CMDB, and Zabbix to pull relevant log windows and asset context.",
-          "Transform nodes normalize timestamps, hostnames, service identifiers, severity levels, and error metadata into a canonical event format.",
-          "Correlation node groups related events by time window, affected service, and error signature to build a causal chain.",
-          "RCA drafting node generates the chronological narrative with ordered events, probable root cause hypothesis, and confidence scoring.",
-          "Review gate node validates the generated chronology against minimum completeness criteria before publishing.",
-          "Output node writes the RCA chronology into the Neutrino incident workspace for operator review.",
+          "Retrieval lane: the Webhook trigger hands off to the Date Helper, which seeds parallel Postgres and HTTP retrieval calls.",
+          "Normalization lane: Text Helper cleans raw log payloads, Data Mapper projects them into the canonical event schema.",
+          "Analysis lane: Azure OpenAI drafts the chronology, Data Summarizer produces confidence aggregates over the same event set.",
+          "Review and publish lane: Approval gates the draft, Store persists the artifact, HTTP publishes to the operator view, and Datadog emits the evidence log.",
         ],
         diagram: "rca-workflow",
-        calloutTitle: "Why the node view matters",
+        calloutTitle: "Why this graph is defensible",
         calloutBody:
-          "This is the most useful visual for customers and internal reviewers because it shows exactly how the RCA automation is composed — from log collection through chronology generation — while still keeping the underlying embedded engine invisible.",
+          "Every labeled box in the graph is a real first-party piece with a real action. There are no generic Code steps standing in for reasoning or storage.",
       },
       {
         id: "chronology-data-flow",
-        kicker: "4. Chronology Data Flow",
-        title: "Log-to-chronology data flow",
+        kicker: "5. Data Flow",
+        title: "Evidence-to-chronology data flow",
         summary:
-          "The data flow model shows how raw log records move from source systems through normalization, correlation, and chronology construction before being published as a structured RCA timeline in the Neutrino incident view.",
+          "The data flow model shows how records are transformed as they move across the four stages. Raw log payloads enter, a governed artifact leaves, and every hop is a real piece action.",
         bullets: [
-          "Input layer: raw log payloads are pulled from Syslog, CMDB asset records, and Zabbix monitoring alerts for the relevant time window.",
-          "Normalization layer: timestamp parsing, field mapping, and metadata enrichment convert heterogeneous log formats into a common event schema.",
-          "Correlation layer: events are grouped by time proximity, host affinity, service relationship, and error pattern similarity.",
-          "Chronology layer: correlated event groups are ordered into a causal timeline with contributing factors, root cause hypothesis, and confidence levels.",
-          "Output layer: the structured RCA chronology is published to the Neutrino incident workspace for operator review and refinement.",
-          "Reuse layer: the same chronology output can feed remediation workflows, stakeholder communication updates, and post-incident review reports.",
+          "Input layer: Postgres rows and HTTP responses for Syslog/Zabbix are the raw evidence for the scoped window.",
+          "Normalization layer: Text Helper produces cleaned log lines; Data Mapper emits canonical event objects with timestamp, host, service, severity, and signature fields.",
+          "Analysis layer: Azure OpenAI consumes the canonical event set and returns a structured chronology; Data Summarizer returns parallel aggregate statistics.",
+          "Governance layer: the Approval step yields a decision record attached to the draft.",
+          "Output layer: the Store artifact, the HTTP publish payload for the Neutrino view, and the Datadog evidence log are the three concrete outputs of the run.",
         ],
         diagram: "rca-chronology",
       },
       {
         id: "operational-value",
-        kicker: "5. Operational Outcome",
-        title: "Why automated RCA chronology generation matters",
+        kicker: "6. Operational Outcome",
+        title: "Why this is worth documenting",
         summary:
-          "This documented capability proves Neutrino is performing real analytical work on incident data, not just collecting logs. It is correlating events, constructing causal timelines, and producing operator-ready RCA drafts that compress investigation time and improve the quality of root cause documentation.",
+          "This page demonstrates that Neutrino is performing real analytical work that is auditable stage by stage. Every claim in the narrative is backed by a named piece and action in the workflow graph.",
         bullets: [
-          "Reduces the time operators spend manually reconstructing incident timelines from scattered log sources.",
-          "Improves RCA quality by systematically including events from all connected systems instead of relying on operator memory.",
-          "Produces a consistent, structured chronology format that can be compared across incidents for pattern detection.",
-          "Connects the RCA output directly to remediation workflows so findings transition into action rather than static reports.",
-          "Positions Neutrino as the operational intelligence layer that transforms raw logs into actionable incident understanding.",
+          "Replaces manual timeline reconstruction with a graph of inspectable, first-party workflow nodes.",
+          "Keeps the LLM reasoning step governed: it is a single explicit action, not embedded logic.",
+          "Requires human approval before the chronology is persisted or emitted downstream.",
+          "Produces three concrete outputs per run — stored artifact, operator-view update, and observability evidence log — rather than an opaque report.",
+          "Leaves every stage independently replaceable because each is satisfied by a single piece and action.",
         ],
       },
     ],

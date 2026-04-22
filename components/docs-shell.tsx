@@ -114,6 +114,28 @@ export function DocsShell({
                   </div>
                 ) : null}
               </div>
+
+              {section.pieces && section.pieces.length > 0 ? (
+                <div className="pieces-grid">
+                  {section.pieces.map((piece) => (
+                    <div className="piece-card" key={`${piece.piece}-${piece.action}-${piece.stage}`}>
+                      <div className="piece-card-head">
+                        <div className="piece-card-logo">
+                          <img src={piece.logoSrc} alt={piece.piece} />
+                        </div>
+                        <div className="piece-card-title">
+                          <span className="piece-card-stage">{piece.stage}</span>
+                          <strong>
+                            {piece.piece}
+                            <span className="piece-card-action"> · {piece.action}</span>
+                          </strong>
+                        </div>
+                      </div>
+                      <p className="piece-card-why">{piece.why}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </section>
           ))}
         </main>

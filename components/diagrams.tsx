@@ -1191,46 +1191,95 @@ export function GovernanceDiagram() {
   );
 }
 
+const RCA_LOGOS = {
+  webhook: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg",
+  http: "https://cdn.activepieces.com/pieces/new-core/http.svg",
+  dateHelper: "https://cdn.activepieces.com/pieces/new-core/date-helper.svg",
+  textHelper: "https://cdn.activepieces.com/pieces/new-core/text-helper.svg",
+  dataMapper: "https://cdn.activepieces.com/pieces/new-core/data-mapper.svg",
+  approval: "https://cdn.activepieces.com/pieces/new-core/approvals.svg",
+  store: "https://cdn.activepieces.com/pieces/new-core/store.svg",
+  postgres: "https://cdn.activepieces.com/pieces/postgres.png",
+  datadog: "https://cdn.activepieces.com/pieces/datadog.png",
+  azureOpenai: "https://cdn.activepieces.com/pieces/azure-openai.png",
+  dataSummarizer: "https://cdn.activepieces.com/pieces/data-summarizer.svg",
+} as const;
+
+const RCA_EDGE_TOKENS = {
+  primary: { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 },
+  primaryMarker: { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" },
+  dim: { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 },
+  dimMarker: { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.35)" },
+  success: { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 },
+  successMarker: { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" },
+  labels: {
+    labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 },
+    labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 },
+    labelBgPadding: [6, 3] as [number, number],
+    labelBgBorderRadius: 8,
+  },
+};
+
+function rcaWorkflowNodes(): Node<WorkflowCanvasNodeData>[] {
+  return [
+    { id: "trigger", type: "workflow", position: { x: 20, y: 220 }, data: { title: "Webhook", subtitle: "catch-hook", logoSrc: RCA_LOGOS.webhook, isTrigger: true, index: 1 } },
+    { id: "date", type: "workflow", position: { x: 240, y: 220 }, data: { title: "Date Helper", subtitle: "format-date", logoSrc: RCA_LOGOS.dateHelper, index: 2 } },
+    { id: "postgres", type: "workflow", position: { x: 480, y: 60 }, data: { title: "Postgres", subtitle: "run-query", logoSrc: RCA_LOGOS.postgres, index: 3 } },
+    { id: "http-fetch", type: "workflow", position: { x: 480, y: 220 }, data: { title: "HTTP", subtitle: "Syslog / Zabbix", logoSrc: RCA_LOGOS.http, index: 4 } },
+    { id: "text", type: "workflow", position: { x: 740, y: 140 }, data: { title: "Text Helper", subtitle: "strip-html", logoSrc: RCA_LOGOS.textHelper, index: 5, multiTarget: true, fanIn: true } },
+    { id: "mapper", type: "workflow", position: { x: 740, y: 320 }, data: { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: RCA_LOGOS.dataMapper, index: 6 } },
+    { id: "llm", type: "workflow", position: { x: 1020, y: 140 }, data: { title: "Azure OpenAI", subtitle: "ask-gpt", logoSrc: RCA_LOGOS.azureOpenai, index: 7 } },
+    { id: "summarize", type: "workflow", position: { x: 1020, y: 320 }, data: { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: RCA_LOGOS.dataSummarizer, index: 8 } },
+    { id: "approval", type: "workflow", position: { x: 1300, y: 140 }, data: { title: "Approval", subtitle: "wait-for-approval", logoSrc: RCA_LOGOS.approval, index: 9 } },
+    { id: "store", type: "workflow", position: { x: 1300, y: 320 }, data: { title: "Store", subtitle: "store-put", logoSrc: RCA_LOGOS.store, index: 10 } },
+    { id: "publish", type: "workflow", position: { x: 1580, y: 140 }, data: { title: "HTTP", subtitle: "POST Neutrino view", logoSrc: RCA_LOGOS.http, index: 11 } },
+    { id: "datadog", type: "workflow", position: { x: 1580, y: 320 }, data: { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: RCA_LOGOS.datadog, index: 12 } },
+  ];
+}
+
+function rcaWorkflowEdges(): Edge[] {
+  const t = RCA_EDGE_TOKENS;
+  return [
+    { id: "r-t-d", source: "trigger", target: "date", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-d-pg", source: "date", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-d-http", source: "date", target: "http-fetch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-pg-text", source: "postgres", target: "text", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "r-http-text", source: "http-fetch", target: "text", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-text-mapper", source: "text", target: "mapper", sourceHandle: "down", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-mapper-llm", source: "mapper", target: "llm", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-mapper-sum", source: "mapper", target: "summarize", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "r-llm-ap", source: "llm", target: "approval", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "DRAFT", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "r-ap-store", source: "approval", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "APPROVE", ...t.labels, markerEnd: t.successMarker, style: t.success },
+    { id: "r-sum-store", source: "summarize", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "r-store-pub", source: "store", target: "publish", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.successMarker, style: t.success },
+    { id: "r-store-dd", source: "store", target: "datadog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+  ];
+}
+
 function RcaWorkflowGraphDiagram() {
-  const nodes: Node<WorkflowCanvasNodeData>[] = [
-    { id: "trigger", type: "workflow", position: { x: 40, y: 190 }, data: { title: "Webhook", subtitle: "Catch incident event", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
-    { id: "syslog", type: "workflow", position: { x: 360, y: 18 }, data: { title: "HTTP", subtitle: "Syslog fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
-    { id: "cmdb", type: "workflow", position: { x: 360, y: 190 }, data: { title: "HTTP", subtitle: "CMDB lookup", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
-    { id: "zabbix", type: "workflow", position: { x: 360, y: 362 }, data: { title: "HTTP", subtitle: "Zabbix fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
-    { id: "normalize", type: "workflow", position: { x: 690, y: 190 }, data: { title: "Code", subtitle: "Normalize events", logoSrc: "/code-node.svg", index: 5, multiTarget: true } },
-    { id: "correlate", type: "workflow", position: { x: 970, y: 190 }, data: { title: "Code", subtitle: "Correlate + chain", logoSrc: "/code-node.svg", index: 6 } },
-    { id: "branch", type: "workflow", position: { x: 1240, y: 190 }, data: { title: "Branch", subtitle: "RCA complete?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
-    { id: "publish", type: "workflow", position: { x: 1555, y: 92 }, data: { title: "HTTP", subtitle: "Publish RCA chronology", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
-    { id: "retry", type: "workflow", position: { x: 1555, y: 288 }, data: { title: "Code", subtitle: "Request more context", logoSrc: "/code-node.svg", index: "8B" } },
-  ];
-
-  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
-  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
-  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
-  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.35)" };
-  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
-  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
-  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
-
-  const edges: Edge[] = [
-    { id: "e-t-sy", source: "trigger", target: "syslog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-t-cm", source: "trigger", target: "cmdb", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-t-za", source: "trigger", target: "zabbix", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-sy-n", source: "syslog", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "e-cm-n", source: "cmdb", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-za-n", source: "zabbix", target: "normalize", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "e-n-co", source: "normalize", target: "correlate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-co-br", source: "correlate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "YES", ...labelProps, markerEnd: successMarker, style: successStyle },
-    { id: "e-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "NO", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
-  ];
-
   return (
-    <div className="workflow-flow-wrap">
-      <div className="workflow-lane lane-sources"><span>Log retrieval</span></div>
-      <div className="workflow-lane lane-processing"><span>Normalization and correlation</span></div>
-      <div className="workflow-lane lane-branch"><span>Decision and publish</span></div>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.55, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+    <div className="workflow-flow-wrap rca-flow-wrap">
+      <div className="workflow-lane rca-lane rca-lane-retrieval"><span>Retrieval</span></div>
+      <div className="workflow-lane rca-lane rca-lane-normalize"><span>Normalization</span></div>
+      <div className="workflow-lane rca-lane rca-lane-analysis"><span>Analysis</span></div>
+      <div className="workflow-lane rca-lane rca-lane-publish"><span>Review &amp; Publish</span></div>
+      <ReactFlow
+        nodes={rcaWorkflowNodes()}
+        edges={rcaWorkflowEdges()}
+        nodeTypes={workflowNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.16, minZoom: 0.42, maxZoom: 1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
+        preventScrolling={false}
+        proOptions={{ hideAttribution: true }}
+        className="workflow-flow"
+      >
         <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
       </ReactFlow>
     </div>
@@ -1238,47 +1287,61 @@ function RcaWorkflowGraphDiagram() {
 }
 
 function RcaDataFlowCanvasDiagram() {
+  const t = RCA_EDGE_TOKENS;
   const nodes: Array<Node<WorkflowCanvasNodeData | ArtifactNodeData>> = [
-    { id: "trigger", type: "workflow", position: { x: 50, y: 170 }, data: { title: "Webhook", subtitle: "Start RCA generation", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
-    { id: "syslog", type: "workflow", position: { x: 330, y: 20 }, data: { title: "HTTP", subtitle: "Syslog", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
-    { id: "cmdb", type: "workflow", position: { x: 330, y: 170 }, data: { title: "HTTP", subtitle: "CMDB", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
-    { id: "zabbix", type: "workflow", position: { x: 330, y: 320 }, data: { title: "HTTP", subtitle: "Zabbix", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
-    { id: "normalize", type: "workflow", position: { x: 640, y: 90 }, data: { title: "Code", subtitle: "Parse + normalize", logoSrc: "/code-node.svg", index: 5, fanIn: true, multiTarget: true } },
-    { id: "correlate", type: "workflow", position: { x: 640, y: 250 }, data: { title: "Code", subtitle: "Correlate + draft", logoSrc: "/code-node.svg", index: 6 } },
-    { id: "branch", type: "workflow", position: { x: 940, y: 170 }, data: { title: "Branch", subtitle: "Ready to publish?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
-    { id: "publish", type: "workflow", position: { x: 1235, y: 95 }, data: { title: "HTTP", subtitle: "Publish RCA", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
-    { id: "retry", type: "workflow", position: { x: 1235, y: 265 }, data: { title: "Code", subtitle: "Retry enrichment", logoSrc: "/code-node.svg", index: "8B" } },
-    { id: "rca-view", type: "artifact", position: { x: 1530, y: 95 }, data: { title: "RCA chronology", subtitle: "Structured causal timeline with ordered events, root cause hypothesis, and confidence scoring attached to the incident record.", tone: "success" } },
+    { id: "trigger", type: "workflow", position: { x: 20, y: 220 }, data: { title: "Webhook", subtitle: "catch-hook", logoSrc: RCA_LOGOS.webhook, isTrigger: true, index: 1 } },
+    { id: "date", type: "workflow", position: { x: 240, y: 220 }, data: { title: "Date Helper", subtitle: "format-date", logoSrc: RCA_LOGOS.dateHelper, index: 2 } },
+    { id: "postgres", type: "workflow", position: { x: 480, y: 60 }, data: { title: "Postgres", subtitle: "run-query", logoSrc: RCA_LOGOS.postgres, index: 3 } },
+    { id: "http-fetch", type: "workflow", position: { x: 480, y: 220 }, data: { title: "HTTP", subtitle: "Syslog / Zabbix", logoSrc: RCA_LOGOS.http, index: 4 } },
+    { id: "text", type: "workflow", position: { x: 740, y: 140 }, data: { title: "Text Helper", subtitle: "strip-html", logoSrc: RCA_LOGOS.textHelper, index: 5, multiTarget: true, fanIn: true } },
+    { id: "mapper", type: "workflow", position: { x: 740, y: 320 }, data: { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: RCA_LOGOS.dataMapper, index: 6 } },
+    { id: "llm", type: "workflow", position: { x: 1020, y: 140 }, data: { title: "Azure OpenAI", subtitle: "ask-gpt", logoSrc: RCA_LOGOS.azureOpenai, index: 7 } },
+    { id: "summarize", type: "workflow", position: { x: 1020, y: 320 }, data: { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: RCA_LOGOS.dataSummarizer, index: 8 } },
+    { id: "approval", type: "workflow", position: { x: 1300, y: 140 }, data: { title: "Approval", subtitle: "wait-for-approval", logoSrc: RCA_LOGOS.approval, index: 9 } },
+    { id: "store", type: "workflow", position: { x: 1300, y: 320 }, data: { title: "Store", subtitle: "store-put", logoSrc: RCA_LOGOS.store, index: 10 } },
+    { id: "datadog", type: "workflow", position: { x: 1580, y: 320 }, data: { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: RCA_LOGOS.datadog, index: 11 } },
+    { id: "rca-view", type: "artifact", position: { x: 1580, y: 100 }, data: { title: "RCA chronology artifact", subtitle: "Structured causal timeline with ordered events, probable root cause, and confidence signals, persisted in Store and posted to the Neutrino incident view.", tone: "success" } },
   ];
 
-  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
-  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
-  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
-  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.32)" };
-  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
-  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
-  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
-
   const edges: Edge[] = [
-    { id: "d-t-sy", source: "trigger", target: "syslog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-t-cm", source: "trigger", target: "cmdb", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-t-za", source: "trigger", target: "zabbix", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-sy-n", source: "syslog", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "d-cm-n", source: "cmdb", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-za-co", source: "zabbix", target: "correlate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "d-n-co", source: "normalize", target: "correlate", sourceHandle: "down", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-co-br", source: "correlate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "READY", ...labelProps, markerEnd: successMarker, style: successStyle },
-    { id: "d-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "RETRY", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-pub-view", source: "publish", target: "rca-view", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: successMarker, style: successStyle },
+    { id: "d-t-d", source: "trigger", target: "date", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-d-pg", source: "date", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-d-http", source: "date", target: "http-fetch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-pg-text", source: "postgres", target: "text", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-http-text", source: "http-fetch", target: "text", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-text-mapper", source: "text", target: "mapper", sourceHandle: "down", targetHandle: "left", type: "smoothstep", label: "canonical events", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-mapper-llm", source: "mapper", target: "llm", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-mapper-sum", source: "mapper", target: "summarize", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-llm-ap", source: "llm", target: "approval", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-ap-store", source: "approval", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "APPROVE", ...t.labels, markerEnd: t.successMarker, style: t.success },
+    { id: "d-sum-store", source: "summarize", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-store-view", source: "store", target: "rca-view", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.successMarker, style: t.success },
+    { id: "d-store-dd", source: "store", target: "datadog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
   ];
 
   return (
-    <div className="workflow-flow-wrap dataflow-flow-wrap">
-      <div className="workflow-lane lane-input"><span>Input nodes</span></div>
-      <div className="workflow-lane lane-processing dataflow-processing"><span>Processing nodes</span></div>
-      <div className="workflow-lane lane-output"><span>Output and RCA view</span></div>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.52, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+    <div className="workflow-flow-wrap dataflow-flow-wrap rca-flow-wrap rca-dataflow-wrap">
+      <div className="workflow-lane rca-lane rca-lane-retrieval"><span>Retrieval</span></div>
+      <div className="workflow-lane rca-lane rca-lane-normalize"><span>Normalization</span></div>
+      <div className="workflow-lane rca-lane rca-lane-analysis"><span>Analysis</span></div>
+      <div className="workflow-lane rca-lane rca-lane-publish"><span>Review, persist &amp; emit</span></div>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={workflowNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.16, minZoom: 0.42, maxZoom: 1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
+        preventScrolling={false}
+        proOptions={{ hideAttribution: true }}
+        className="workflow-flow"
+      >
         <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
       </ReactFlow>
     </div>
@@ -1289,13 +1352,13 @@ export function RcaHldDiagram() {
   return (
     <DiagramFrame
       title="RCA chronology generation HLD"
-      note="A formal high-level design showing how source systems, orchestration, correlation, and chronology output fit together inside the implemented Neutrino RCA capability."
+      note="The implemented high-level design: four stages, each satisfied by a named first-party workflow piece, with three concrete outputs per run."
     >
       <div className="source-grid">
         {[
-          { title: "Syslog", copy: "Machine, network, and application event records" },
-          { title: "CMDB", copy: "Asset metadata, ownership, and dependency context" },
-          { title: "Zabbix", copy: "Monitoring alerts and affected host state" },
+          { title: "Log database", copy: "Postgres · run-query pulls records for the scoped time window" },
+          { title: "Monitoring APIs", copy: "HTTP calls into Syslog and Zabbix for events and alerts" },
+          { title: "Observability stack", copy: "Datadog · send-multiple-logs receives the RCA evidence on publish" },
         ].map((source, index) => (
           <motion.div className="source-card" key={source.title} {...floatIn(index * 0.08)}>
             <strong>{source.title}</strong>
@@ -1307,21 +1370,29 @@ export function RcaHldDiagram() {
       <BuilderCanvasRows
         rows={[
           [
-            { title: "Webhook", subtitle: "Incident trigger", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 },
-            { title: "HTTP", subtitle: "Collect log data", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 },
-            { title: "Code", subtitle: "Normalize events", logoSrc: "/code-node.svg", index: 3 },
+            { title: "Webhook", subtitle: "catch-hook", logoSrc: RCA_LOGOS.webhook, isTrigger: true, index: 1 },
+            { title: "Date Helper", subtitle: "format-date", logoSrc: RCA_LOGOS.dateHelper, index: 2 },
+            { title: "Postgres", subtitle: "run-query", logoSrc: RCA_LOGOS.postgres, index: 3 },
+            { title: "HTTP", subtitle: "Syslog / Zabbix", logoSrc: RCA_LOGOS.http, index: 4 },
           ],
           [
-            { title: "Code", subtitle: "Correlate + chain", logoSrc: "/code-node.svg", index: 4 },
-            { title: "Branch", subtitle: "Validate output", logoSrc: "/branch-node.svg", index: 5 },
-            { title: "HTTP", subtitle: "Write RCA chronology", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 6 },
+            { title: "Text Helper", subtitle: "strip-html", logoSrc: RCA_LOGOS.textHelper, index: 5 },
+            { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: RCA_LOGOS.dataMapper, index: 6 },
+            { title: "Azure OpenAI", subtitle: "ask-gpt", logoSrc: RCA_LOGOS.azureOpenai, index: 7 },
+            { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: RCA_LOGOS.dataSummarizer, index: 8 },
+          ],
+          [
+            { title: "Approval", subtitle: "wait-for-approval", logoSrc: RCA_LOGOS.approval, index: 9 },
+            { title: "Store", subtitle: "store-put", logoSrc: RCA_LOGOS.store, index: 10 },
+            { title: "HTTP", subtitle: "POST Neutrino view", logoSrc: RCA_LOGOS.http, index: 11 },
+            { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: RCA_LOGOS.datadog, index: 12 },
           ],
         ]}
         compact
       />
       <motion.div className="publish-card" {...floatIn(0.48)}>
-        <strong>RCA chronology output</strong>
-        <span>The generated chronology becomes one operator-facing RCA timeline that can feed remediation workflows, stakeholder communication, and post-incident review.</span>
+        <strong>Three concrete outputs</strong>
+        <span>Every approved run produces a stored RCA artifact, an updated Neutrino operator view, and a structured evidence log in the observability stack.</span>
       </motion.div>
     </DiagramFrame>
   );
