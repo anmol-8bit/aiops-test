@@ -82,7 +82,7 @@ export function DocsShell({
 
               <div
                 className={
-                  section.diagram === "platform" || section.diagram?.startsWith("collection")
+                  section.diagram === "platform" || section.diagram?.startsWith("collection") || section.diagram?.startsWith("rca-") || section.diagram?.startsWith("dashboard-")
                     ? "section-layout stacked-diagram"
                     : section.diagram
                       ? "two-col"

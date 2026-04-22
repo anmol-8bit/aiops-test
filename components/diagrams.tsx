@@ -1191,13 +1191,359 @@ export function GovernanceDiagram() {
   );
 }
 
+function RcaWorkflowGraphDiagram() {
+  const nodes: Node<WorkflowCanvasNodeData>[] = [
+    { id: "trigger", type: "workflow", position: { x: 40, y: 190 }, data: { title: "Webhook", subtitle: "Catch incident event", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
+    { id: "syslog", type: "workflow", position: { x: 360, y: 18 }, data: { title: "HTTP", subtitle: "Syslog fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
+    { id: "cmdb", type: "workflow", position: { x: 360, y: 190 }, data: { title: "HTTP", subtitle: "CMDB lookup", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
+    { id: "zabbix", type: "workflow", position: { x: 360, y: 362 }, data: { title: "HTTP", subtitle: "Zabbix fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
+    { id: "normalize", type: "workflow", position: { x: 690, y: 190 }, data: { title: "Code", subtitle: "Normalize events", logoSrc: "/code-node.svg", index: 5, multiTarget: true } },
+    { id: "correlate", type: "workflow", position: { x: 970, y: 190 }, data: { title: "Code", subtitle: "Correlate + chain", logoSrc: "/code-node.svg", index: 6 } },
+    { id: "branch", type: "workflow", position: { x: 1240, y: 190 }, data: { title: "Branch", subtitle: "RCA complete?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
+    { id: "publish", type: "workflow", position: { x: 1555, y: 92 }, data: { title: "HTTP", subtitle: "Publish RCA chronology", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
+    { id: "retry", type: "workflow", position: { x: 1555, y: 288 }, data: { title: "Code", subtitle: "Request more context", logoSrc: "/code-node.svg", index: "8B" } },
+  ];
+
+  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
+  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
+  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
+  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.35)" };
+  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
+  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
+  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
+
+  const edges: Edge[] = [
+    { id: "e-t-sy", source: "trigger", target: "syslog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-t-cm", source: "trigger", target: "cmdb", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-t-za", source: "trigger", target: "zabbix", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-sy-n", source: "syslog", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "e-cm-n", source: "cmdb", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-za-n", source: "zabbix", target: "normalize", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "e-n-co", source: "normalize", target: "correlate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-co-br", source: "correlate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "YES", ...labelProps, markerEnd: successMarker, style: successStyle },
+    { id: "e-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "NO", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
+  ];
+
+  return (
+    <div className="workflow-flow-wrap">
+      <div className="workflow-lane lane-sources"><span>Log retrieval</span></div>
+      <div className="workflow-lane lane-processing"><span>Normalization and correlation</span></div>
+      <div className="workflow-lane lane-branch"><span>Decision and publish</span></div>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.55, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+        <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
+      </ReactFlow>
+    </div>
+  );
+}
+
+function RcaDataFlowCanvasDiagram() {
+  const nodes: Array<Node<WorkflowCanvasNodeData | ArtifactNodeData>> = [
+    { id: "trigger", type: "workflow", position: { x: 50, y: 170 }, data: { title: "Webhook", subtitle: "Start RCA generation", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
+    { id: "syslog", type: "workflow", position: { x: 330, y: 20 }, data: { title: "HTTP", subtitle: "Syslog", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
+    { id: "cmdb", type: "workflow", position: { x: 330, y: 170 }, data: { title: "HTTP", subtitle: "CMDB", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
+    { id: "zabbix", type: "workflow", position: { x: 330, y: 320 }, data: { title: "HTTP", subtitle: "Zabbix", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
+    { id: "normalize", type: "workflow", position: { x: 640, y: 90 }, data: { title: "Code", subtitle: "Parse + normalize", logoSrc: "/code-node.svg", index: 5, fanIn: true, multiTarget: true } },
+    { id: "correlate", type: "workflow", position: { x: 640, y: 250 }, data: { title: "Code", subtitle: "Correlate + draft", logoSrc: "/code-node.svg", index: 6 } },
+    { id: "branch", type: "workflow", position: { x: 940, y: 170 }, data: { title: "Branch", subtitle: "Ready to publish?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
+    { id: "publish", type: "workflow", position: { x: 1235, y: 95 }, data: { title: "HTTP", subtitle: "Publish RCA", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
+    { id: "retry", type: "workflow", position: { x: 1235, y: 265 }, data: { title: "Code", subtitle: "Retry enrichment", logoSrc: "/code-node.svg", index: "8B" } },
+    { id: "rca-view", type: "artifact", position: { x: 1530, y: 95 }, data: { title: "RCA chronology", subtitle: "Structured causal timeline with ordered events, root cause hypothesis, and confidence scoring attached to the incident record.", tone: "success" } },
+  ];
+
+  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
+  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
+  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
+  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.32)" };
+  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
+  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
+  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
+
+  const edges: Edge[] = [
+    { id: "d-t-sy", source: "trigger", target: "syslog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-t-cm", source: "trigger", target: "cmdb", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-t-za", source: "trigger", target: "zabbix", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-sy-n", source: "syslog", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "d-cm-n", source: "cmdb", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-za-co", source: "zabbix", target: "correlate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "d-n-co", source: "normalize", target: "correlate", sourceHandle: "down", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-co-br", source: "correlate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "READY", ...labelProps, markerEnd: successMarker, style: successStyle },
+    { id: "d-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "RETRY", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-pub-view", source: "publish", target: "rca-view", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: successMarker, style: successStyle },
+  ];
+
+  return (
+    <div className="workflow-flow-wrap dataflow-flow-wrap">
+      <div className="workflow-lane lane-input"><span>Input nodes</span></div>
+      <div className="workflow-lane lane-processing dataflow-processing"><span>Processing nodes</span></div>
+      <div className="workflow-lane lane-output"><span>Output and RCA view</span></div>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.52, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+        <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
+      </ReactFlow>
+    </div>
+  );
+}
+
+export function RcaHldDiagram() {
+  return (
+    <DiagramFrame
+      title="RCA chronology generation HLD"
+      note="A formal high-level design showing how source systems, orchestration, correlation, and chronology output fit together inside the implemented Neutrino RCA capability."
+    >
+      <div className="source-grid">
+        {[
+          { title: "Syslog", copy: "Machine, network, and application event records" },
+          { title: "CMDB", copy: "Asset metadata, ownership, and dependency context" },
+          { title: "Zabbix", copy: "Monitoring alerts and affected host state" },
+        ].map((source, index) => (
+          <motion.div className="source-card" key={source.title} {...floatIn(index * 0.08)}>
+            <strong>{source.title}</strong>
+            <span>{source.copy}</span>
+          </motion.div>
+        ))}
+      </div>
+      <div className="builder-band-label">Neutrino RCA generation workflow</div>
+      <BuilderCanvasRows
+        rows={[
+          [
+            { title: "Webhook", subtitle: "Incident trigger", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 },
+            { title: "HTTP", subtitle: "Collect log data", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 },
+            { title: "Code", subtitle: "Normalize events", logoSrc: "/code-node.svg", index: 3 },
+          ],
+          [
+            { title: "Code", subtitle: "Correlate + chain", logoSrc: "/code-node.svg", index: 4 },
+            { title: "Branch", subtitle: "Validate output", logoSrc: "/branch-node.svg", index: 5 },
+            { title: "HTTP", subtitle: "Write RCA chronology", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 6 },
+          ],
+        ]}
+        compact
+      />
+      <motion.div className="publish-card" {...floatIn(0.48)}>
+        <strong>RCA chronology output</strong>
+        <span>The generated chronology becomes one operator-facing RCA timeline that can feed remediation workflows, stakeholder communication, and post-incident review.</span>
+      </motion.div>
+    </DiagramFrame>
+  );
+}
+
+export function RcaWorkflowDiagram() {
+  return (
+    <DiagramFrame
+      title="RCA workflow node design"
+      note="A document-style node model showing how the implemented RCA orchestration is composed without exposing the embedded workflow product name."
+    >
+      <RcaWorkflowGraphDiagram />
+      <div className="mini-grid">
+        <motion.div className="mini-card" {...floatIn(0.44)}>
+          <strong>Execution pattern</strong>
+          <span>The retrieval stage uses real HTTP action nodes, while normalization and correlation are modeled as Code steps, followed by a Branch validation gate.</span>
+        </motion.div>
+        <motion.div className="mini-card" {...floatIn(0.54)}>
+          <strong>Result</strong>
+          <span>The final publish step writes a structured RCA chronology to the incident record instead of leaving log data fragmented across separate tools.</span>
+        </motion.div>
+      </div>
+    </DiagramFrame>
+  );
+}
+
+export function RcaChronologyDiagram() {
+  return (
+    <DiagramFrame
+      title="RCA chronology data flow model"
+      note="A structured DFD view showing the movement of log records from source systems to a unified RCA chronology output."
+    >
+      <RcaDataFlowCanvasDiagram />
+    </DiagramFrame>
+  );
+}
+
+function DashboardWorkflowGraphDiagram() {
+  const nodes: Node<WorkflowCanvasNodeData>[] = [
+    { id: "trigger", type: "workflow", position: { x: 40, y: 190 }, data: { title: "Webhook", subtitle: "Scheduled refresh", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
+    { id: "postgres", type: "workflow", position: { x: 360, y: 18 }, data: { title: "HTTP", subtitle: "PostgreSQL query", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
+    { id: "excel", type: "workflow", position: { x: 360, y: 190 }, data: { title: "HTTP", subtitle: "Excel ingestion", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
+    { id: "api", type: "workflow", position: { x: 360, y: 362 }, data: { title: "HTTP", subtitle: "API fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
+    { id: "normalize", type: "workflow", position: { x: 690, y: 190 }, data: { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 5, multiTarget: true } },
+    { id: "aggregate", type: "workflow", position: { x: 970, y: 190 }, data: { title: "Code", subtitle: "Aggregate + SLA calc", logoSrc: "/code-node.svg", index: 6 } },
+    { id: "branch", type: "workflow", position: { x: 1240, y: 190 }, data: { title: "Branch", subtitle: "Data complete?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
+    { id: "publish", type: "workflow", position: { x: 1555, y: 92 }, data: { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
+    { id: "retry", type: "workflow", position: { x: 1555, y: 288 }, data: { title: "Code", subtitle: "Request missing data", logoSrc: "/code-node.svg", index: "8B" } },
+  ];
+
+  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
+  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
+  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
+  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.35)" };
+  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
+  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
+  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
+
+  const edges: Edge[] = [
+    { id: "e-t-pg", source: "trigger", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-t-ex", source: "trigger", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-t-ap", source: "trigger", target: "api", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-pg-n", source: "postgres", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "e-ex-n", source: "excel", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-ap-n", source: "api", target: "normalize", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "e-n-ag", source: "normalize", target: "aggregate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-ag-br", source: "aggregate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "e-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "YES", ...labelProps, markerEnd: successMarker, style: successStyle },
+    { id: "e-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "NO", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
+  ];
+
+  return (
+    <div className="workflow-flow-wrap">
+      <div className="workflow-lane lane-sources"><span>Data retrieval</span></div>
+      <div className="workflow-lane lane-processing"><span>Normalization and aggregation</span></div>
+      <div className="workflow-lane lane-branch"><span>Decision and publish</span></div>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.55, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+        <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
+      </ReactFlow>
+    </div>
+  );
+}
+
+function DashboardDataFlowCanvasDiagram() {
+  const nodes: Array<Node<WorkflowCanvasNodeData | ArtifactNodeData>> = [
+    { id: "trigger", type: "workflow", position: { x: 50, y: 170 }, data: { title: "Webhook", subtitle: "Start dashboard refresh", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
+    { id: "postgres", type: "workflow", position: { x: 330, y: 20 }, data: { title: "HTTP", subtitle: "PostgreSQL", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
+    { id: "excel", type: "workflow", position: { x: 330, y: 170 }, data: { title: "HTTP", subtitle: "Excel files", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
+    { id: "api", type: "workflow", position: { x: 330, y: 320 }, data: { title: "HTTP", subtitle: "External APIs", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
+    { id: "normalize", type: "workflow", position: { x: 640, y: 90 }, data: { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 5, fanIn: true, multiTarget: true } },
+    { id: "aggregate", type: "workflow", position: { x: 640, y: 250 }, data: { title: "Code", subtitle: "Aggregate + SLA", logoSrc: "/code-node.svg", index: 6 } },
+    { id: "branch", type: "workflow", position: { x: 940, y: 170 }, data: { title: "Branch", subtitle: "Ready to publish?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
+    { id: "publish", type: "workflow", position: { x: 1235, y: 95 }, data: { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
+    { id: "retry", type: "workflow", position: { x: 1235, y: 265 }, data: { title: "Code", subtitle: "Retry fetch", logoSrc: "/code-node.svg", index: "8B" } },
+    { id: "dashboard-view", type: "artifact", position: { x: 1530, y: 95 }, data: { title: "Unified dashboard", subtitle: "Consolidated view of open tickets, SLA compliance, service health, and team workload in one Neutrino operator surface.", tone: "success" } },
+  ];
+
+  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
+  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
+  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
+  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.32)" };
+  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
+  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
+  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
+
+  const edges: Edge[] = [
+    { id: "d-t-pg", source: "trigger", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-t-ex", source: "trigger", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-t-ap", source: "trigger", target: "api", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-pg-n", source: "postgres", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "d-ex-n", source: "excel", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-ap-ag", source: "api", target: "aggregate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
+    { id: "d-n-ag", source: "normalize", target: "aggregate", sourceHandle: "down", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-ag-br", source: "aggregate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "READY", ...labelProps, markerEnd: successMarker, style: successStyle },
+    { id: "d-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "RETRY", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
+    { id: "d-pub-view", source: "publish", target: "dashboard-view", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: successMarker, style: successStyle },
+  ];
+
+  return (
+    <div className="workflow-flow-wrap dataflow-flow-wrap">
+      <div className="workflow-lane lane-input"><span>Input nodes</span></div>
+      <div className="workflow-lane lane-processing dataflow-processing"><span>Processing nodes</span></div>
+      <div className="workflow-lane lane-output"><span>Output and dashboard view</span></div>
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.52, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+        <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
+      </ReactFlow>
+    </div>
+  );
+}
+
+export function DashboardHldDiagram() {
+  return (
+    <DiagramFrame
+      title="Centralized dashboarding HLD"
+      note="A formal high-level design showing how PostgreSQL databases, Excel files, and APIs connect through Neutrino orchestration to produce a unified operational dashboard."
+    >
+      <div className="source-grid">
+        {[
+          { title: "PostgreSQL", copy: "Ticket records, incident tables, and resolution metrics" },
+          { title: "Excel", copy: "SLA definitions, service catalogs, and team ownership" },
+          { title: "APIs", copy: "External ticketing and monitoring system data" },
+        ].map((source, index) => (
+          <motion.div className="source-card" key={source.title} {...floatIn(index * 0.08)}>
+            <strong>{source.title}</strong>
+            <span>{source.copy}</span>
+          </motion.div>
+        ))}
+      </div>
+      <div className="builder-band-label">Neutrino dashboard assembly workflow</div>
+      <BuilderCanvasRows
+        rows={[
+          [
+            { title: "Webhook", subtitle: "Scheduled trigger", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 },
+            { title: "HTTP", subtitle: "Query data sources", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 },
+            { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 3 },
+          ],
+          [
+            { title: "Code", subtitle: "Aggregate + SLA calc", logoSrc: "/code-node.svg", index: 4 },
+            { title: "Branch", subtitle: "Validate output", logoSrc: "/branch-node.svg", index: 5 },
+            { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 6 },
+          ],
+        ]}
+        compact
+      />
+      <motion.div className="publish-card" {...floatIn(0.48)}>
+        <strong>Unified operational dashboard</strong>
+        <span>The assembled output becomes one operator-facing dashboard showing open tickets, SLA compliance, service health, and team workload across all connected data sources.</span>
+      </motion.div>
+    </DiagramFrame>
+  );
+}
+
+export function DashboardWorkflowDiagram() {
+  return (
+    <DiagramFrame
+      title="Dashboard workflow node design"
+      note="A document-style node model showing how the implemented dashboard data pipeline is composed without exposing the embedded workflow product name."
+    >
+      <DashboardWorkflowGraphDiagram />
+      <div className="mini-grid">
+        <motion.div className="mini-card" {...floatIn(0.44)}>
+          <strong>Execution pattern</strong>
+          <span>The retrieval stage uses HTTP action nodes to query PostgreSQL and parse Excel files, while normalization and SLA calculation are modeled as Code steps, followed by a Branch validation gate.</span>
+        </motion.div>
+        <motion.div className="mini-card" {...floatIn(0.54)}>
+          <strong>Result</strong>
+          <span>The final publish step writes a unified dashboard to the Neutrino workspace instead of leaving ticket and SLA data scattered across disconnected systems.</span>
+        </motion.div>
+      </div>
+    </DiagramFrame>
+  );
+}
+
+export function DashboardDataFlowDiagram() {
+  return (
+    <DiagramFrame
+      title="Dashboard data flow model"
+      note="A structured DFD view showing the movement of records from PostgreSQL, Excel, and APIs to a unified Neutrino dashboard output."
+    >
+      <DashboardDataFlowCanvasDiagram />
+    </DiagramFrame>
+  );
+}
+
 export function DiagramRenderer({ diagram }: { diagram: DiagramKey }) {
   if (diagram === "platform") return <PlatformDiagram />;
   if (diagram === "alerts") return <AlertDiagram />;
   if (diagram === "rca") return <RcaDiagram />;
+  if (diagram === "rca-hld") return <RcaHldDiagram />;
+  if (diagram === "rca-workflow") return <RcaWorkflowDiagram />;
+  if (diagram === "rca-chronology") return <RcaChronologyDiagram />;
+  if (diagram === "rca-dataflow") return <RcaChronologyDiagram />;
+  if (diagram === "dashboard-hld") return <DashboardHldDiagram />;
+  if (diagram === "dashboard-workflow") return <DashboardWorkflowDiagram />;
+  if (diagram === "dashboard-dataflow") return <DashboardDataFlowDiagram />;
   if (diagram === "stakeholders") return <StakeholderDiagram />;
   if (diagram === "collection-hld") return <CollectionHldDiagram />;
   if (diagram === "collection-workflow") return <CollectionWorkflowDiagram />;
   if (diagram === "collection-dataflow") return <CollectionDataFlowDiagram />;
   return <GovernanceDiagram />;
 }
+
+
+

@@ -2,6 +2,13 @@ export type DiagramKey =
   | "platform"
   | "alerts"
   | "rca"
+  | "rca-hld"
+  | "rca-workflow"
+  | "rca-chronology"
+  | "rca-dataflow"
+  | "dashboard-hld"
+  | "dashboard-workflow"
+  | "dashboard-dataflow"
   | "stakeholders"
   | "collection-hld"
   | "collection-workflow"
@@ -300,66 +307,238 @@ const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "rapid-root-cause-analysis",
-    title: "Run Rapid Root Cause Analysis",
+    title: "RCA Generation",
     kicker: "Use Case 02",
     summary:
-      "Gather and analyze logs and system data to identify the likely root cause of an incident faster, then convert findings into structured remediation steps.",
+      "Neutrino automates the initial Root Cause Analysis chronology by collecting system logs from connected sources, correlating events across time and service boundaries, and drafting a structured RCA timeline that operators can review, refine, and attach to incident records.",
     stats: [
       {
-        label: "Normalized context",
-        value: "Canonical log schema",
-        copy: "Signals from multiple systems can be reasoned over consistently once mapped.",
+        label: "Log sources",
+        value: "Syslog, CMDB, Zabbix",
+        copy: "Operational logs from separate monitoring and inventory systems are pulled into one analysis context.",
       },
       {
         label: "Analysis artifact",
-        value: "Causal chain",
-        copy: "The operator can see how events connect instead of reading isolated lines.",
+        value: "Chronological RCA draft",
+        copy: "The output is an ordered timeline of contributing events, not a raw log dump or unstructured summary.",
       },
       {
-        label: "Execution output",
-        value: "SOP-backed workflow",
-        copy: "Findings transition directly into an action path, not a dead-end report.",
+        label: "Operator outcome",
+        value: "Review-ready chronology",
+        copy: "Operators receive a structured first draft they can validate and refine instead of building the timeline from scratch.",
       },
     ],
     badges: [
-      "Canonical field mapping",
-      "Causal chain analysis",
-      "SOP-linked remediation",
+      "Implemented in Neutrino",
+      "Log-driven chronology",
+      "Cross-system correlation",
+      "Workflow-backed generation",
+      "Architecture documented",
     ],
     sections: [
       {
-        id: "rca-pipeline",
-        kicker: "Analysis flow",
-        title: "How Neutrino compresses RCA time",
+        id: "document-purpose",
+        kicker: "1. Purpose",
+        title: "Document objective and implementation statement",
         summary:
-          "Root cause analysis becomes faster when logs, correlation context, SOP knowledge, and workflow execution live in the same operator workflow.",
-        paragraphs: [
-          "Neutrino does not stop at showing recent logs. It creates an incident object with summary, probable root cause, causal chain entries, and workflow context that can drive the next step of remediation.",
-        ],
+          "This document describes how Neutrino generates the initial Root Cause Analysis chronology from system logs. The implemented workflow collects log records from connected sources, correlates events by time, host, and service, and produces a structured RCA timeline that operators can review before attaching it to the incident record.",
         bullets: [
-          "Collect logs and event context from connected observability sources.",
-          "Normalize raw documents into consistent top-level fields and metadata.",
-          "Correlate related signals into an incident narrative and confidence-scored chain.",
-          "Attach SOP references and pre-defined objectives to the incident.",
-          "Generate a governed remediation workflow for execution or review.",
+          "Syslog provides machine-level, network, and application event records with timestamps.",
+          "CMDB provides asset metadata, ownership context, and service dependency relationships.",
+          "Zabbix provides monitoring alerts, availability signals, and affected host context.",
+          "Neutrino correlates these inputs into an ordered RCA chronology with causal chain entries.",
+          "The generated chronology becomes part of the incident record and feeds downstream remediation workflows.",
         ],
-        diagram: "rca",
-        calloutTitle: "Release language",
+        calloutTitle: "Implementation note",
         calloutBody:
-          "Position RCA as a closed-loop operational workflow: analysis leads directly to action, not just to another dashboard.",
+          "This page documents the RCA generation capability as implemented: the workflow is built, the chronology output format is established, and operators can review and refine the generated timeline through the Neutrino incident workspace.",
       },
       {
-        id: "technical-proof",
-        kicker: "Technical proof points",
-        title: "What makes the RCA story credible",
+        id: "high-level-design",
+        kicker: "2. High-Level Design",
+        title: "System architecture for RCA chronology generation",
         summary:
-          "The product model already supports root cause, summary, causal chain entries, SOP linkage, and workflow payloads. Those data structures are what make the docs more than conceptual architecture.",
+          "The implemented design uses Neutrino as the orchestration layer for RCA generation. Source systems provide raw log data, while correlation, timeline construction, and chronology formatting are executed through Neutrino-controlled workflow steps. The output is a structured RCA draft that operators can review before it becomes part of the formal incident record.",
         bullets: [
-          "Connector pages show how incident context is sourced.",
-          "Data mapping pages show how source fields become analyzable.",
-          "Correlation pages show root cause, causal chain, and incident status.",
-          "SOP pages show operator-curated runbooks and procedure content.",
-          "Workflow pages show execution detail, status, and linked incident context.",
+          "External systems expose log streams, monitoring alerts, and asset inventory data.",
+          "Neutrino Workflows coordinate retrieval of relevant log windows from each source system.",
+          "Normalization steps convert source-specific log formats into a common timestamped event model.",
+          "Correlation logic groups related events by time proximity, affected host, service, and error signature.",
+          "The RCA engine drafts a chronological narrative with contributing events, probable root cause, and confidence signals.",
+          "The resulting chronology is persisted as a reviewable RCA artifact attached to the incident.",
+        ],
+        diagram: "rca-hld",
+        calloutTitle: "Documentation stance",
+        calloutBody:
+          "Keep the HLD framed around Neutrino-native RCA capabilities. The workflow layer should be shown as part of the Neutrino analysis engine, not as a separate branded product.",
+      },
+      {
+        id: "workflow-node-model",
+        kicker: "3. Workflow Node Model",
+        title: "Implemented workflow design for RCA chronology generation",
+        summary:
+          "The RCA generation automation is implemented as a node-based workflow with explicit log collection, normalization, correlation, chronology drafting, and review stages. Each stage maps to a real workflow node type, making the design traceable and auditable.",
+        bullets: [
+          "Trigger node starts the RCA generation flow when an incident is created or escalated.",
+          "Source retrieval nodes call Syslog, CMDB, and Zabbix to pull relevant log windows and asset context.",
+          "Transform nodes normalize timestamps, hostnames, service identifiers, severity levels, and error metadata into a canonical event format.",
+          "Correlation node groups related events by time window, affected service, and error signature to build a causal chain.",
+          "RCA drafting node generates the chronological narrative with ordered events, probable root cause hypothesis, and confidence scoring.",
+          "Review gate node validates the generated chronology against minimum completeness criteria before publishing.",
+          "Output node writes the RCA chronology into the Neutrino incident workspace for operator review.",
+        ],
+        diagram: "rca-workflow",
+        calloutTitle: "Why the node view matters",
+        calloutBody:
+          "This is the most useful visual for customers and internal reviewers because it shows exactly how the RCA automation is composed — from log collection through chronology generation — while still keeping the underlying embedded engine invisible.",
+      },
+      {
+        id: "chronology-data-flow",
+        kicker: "4. Chronology Data Flow",
+        title: "Log-to-chronology data flow",
+        summary:
+          "The data flow model shows how raw log records move from source systems through normalization, correlation, and chronology construction before being published as a structured RCA timeline in the Neutrino incident view.",
+        bullets: [
+          "Input layer: raw log payloads are pulled from Syslog, CMDB asset records, and Zabbix monitoring alerts for the relevant time window.",
+          "Normalization layer: timestamp parsing, field mapping, and metadata enrichment convert heterogeneous log formats into a common event schema.",
+          "Correlation layer: events are grouped by time proximity, host affinity, service relationship, and error pattern similarity.",
+          "Chronology layer: correlated event groups are ordered into a causal timeline with contributing factors, root cause hypothesis, and confidence levels.",
+          "Output layer: the structured RCA chronology is published to the Neutrino incident workspace for operator review and refinement.",
+          "Reuse layer: the same chronology output can feed remediation workflows, stakeholder communication updates, and post-incident review reports.",
+        ],
+        diagram: "rca-chronology",
+      },
+      {
+        id: "operational-value",
+        kicker: "5. Operational Outcome",
+        title: "Why automated RCA chronology generation matters",
+        summary:
+          "This documented capability proves Neutrino is performing real analytical work on incident data, not just collecting logs. It is correlating events, constructing causal timelines, and producing operator-ready RCA drafts that compress investigation time and improve the quality of root cause documentation.",
+        bullets: [
+          "Reduces the time operators spend manually reconstructing incident timelines from scattered log sources.",
+          "Improves RCA quality by systematically including events from all connected systems instead of relying on operator memory.",
+          "Produces a consistent, structured chronology format that can be compared across incidents for pattern detection.",
+          "Connects the RCA output directly to remediation workflows so findings transition into action rather than static reports.",
+          "Positions Neutrino as the operational intelligence layer that transforms raw logs into actionable incident understanding.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "centralized-dashboarding",
+    title: "Centralized Dashboarding",
+    kicker: "Use Case 03",
+    summary:
+      "Neutrino connects structured data sources such as PostgreSQL databases and Excel files to build a unified operational dashboard showing open tickets, SLA status, and service health in one consolidated view.",
+    stats: [
+      {
+        label: "Data sources",
+        value: "PostgreSQL, Excel, APIs",
+        copy: "Structured operational data from databases, spreadsheets, and service endpoints is pulled into one analytics context.",
+      },
+      {
+        label: "Dashboard output",
+        value: "Unified ticket and SLA view",
+        copy: "The output is a consolidated operational dashboard, not a raw data dump or disconnected report.",
+      },
+      {
+        label: "Operator outcome",
+        value: "Single-pane visibility",
+        copy: "Operators and managers see real-time ticket status and SLA compliance without switching between systems.",
+      },
+    ],
+    badges: [
+      "Implemented in Neutrino",
+      "Multi-source analytics",
+      "PostgreSQL integration",
+      "Excel file ingestion",
+      "Architecture documented",
+    ],
+    sections: [
+      {
+        id: "document-purpose",
+        kicker: "1. Purpose",
+        title: "Document objective and implementation statement",
+        summary:
+          "This document describes how Neutrino builds centralized operational dashboards by connecting to structured data sources. The implemented workflow retrieves ticket records from PostgreSQL databases, ingests SLA and inventory data from Excel files, and assembles a unified dashboard view that operators and managers can use for real-time operational visibility.",
+        bullets: [
+          "PostgreSQL provides live ticket records, incident status, assignment history, and resolution timestamps.",
+          "Excel files provide SLA definitions, service inventory, team ownership mappings, and compliance thresholds.",
+          "HTTP APIs provide supplementary operational data from external ticketing and monitoring systems.",
+          "Neutrino consolidates these inputs into a single dashboard with ticket counts, SLA compliance metrics, and service health indicators.",
+          "The generated dashboard becomes a persistent operational view that refreshes on schedule or on-demand.",
+        ],
+        calloutTitle: "Implementation note",
+        calloutBody:
+          "This page documents the centralized dashboarding capability as implemented: the data connections are established, the dashboard layout is configured, and operators can view live ticket and SLA status through the Neutrino workspace.",
+      },
+      {
+        id: "high-level-design",
+        kicker: "2. High-Level Design",
+        title: "System architecture for centralized dashboarding",
+        summary:
+          "The implemented design uses Neutrino as the orchestration and presentation layer for operational dashboards. Data sources remain external, while retrieval, transformation, aggregation, and visualization are executed through Neutrino-controlled workflow steps. The output is a unified dashboard that operators can access without logging into individual source systems.",
+        bullets: [
+          "PostgreSQL databases expose ticket records, incident tables, and operational metrics through SQL queries.",
+          "Excel files provide reference data including SLA targets, service catalogs, and team ownership matrices.",
+          "Neutrino Workflows coordinate retrieval from each data source on schedule or trigger.",
+          "Transformation steps normalize ticket schemas, calculate SLA compliance, and aggregate counts by status, priority, and team.",
+          "The resulting dashboard is assembled as a Neutrino operator view with charts, tables, and status indicators.",
+          "The same aggregated data can feed alerting workflows when SLA thresholds are breached.",
+        ],
+        diagram: "dashboard-hld",
+        calloutTitle: "Documentation stance",
+        calloutBody:
+          "Keep the HLD framed around Neutrino-native dashboarding capabilities. The data connectivity layer should be shown as part of Neutrino orchestration, not as a separate data integration product.",
+      },
+      {
+        id: "workflow-node-model",
+        kicker: "3. Workflow Node Model",
+        title: "Implemented workflow design for dashboard data assembly",
+        summary:
+          "The dashboarding automation is implemented as a node-based workflow with explicit data retrieval, transformation, aggregation, and dashboard publishing stages. Each stage maps to a real workflow node type, making the data pipeline traceable and auditable.",
+        bullets: [
+          "Trigger node starts the dashboard refresh flow on schedule or when manually requested.",
+          "PostgreSQL retrieval nodes execute SQL queries to pull open tickets, incident records, and resolution metrics.",
+          "File ingestion nodes parse Excel files containing SLA definitions, service catalogs, and team ownership data.",
+          "Transform nodes normalize ticket schemas, join records across sources, and calculate SLA compliance percentages.",
+          "Aggregation node groups tickets by status, priority, team, and SLA compliance state.",
+          "Branch node validates data completeness before publishing the dashboard view.",
+          "Output node writes the assembled dashboard data into the Neutrino workspace for operator access.",
+        ],
+        diagram: "dashboard-workflow",
+        calloutTitle: "Why the node view matters",
+        calloutBody:
+          "This is the most useful visual for customers and internal reviewers because it shows exactly how the dashboard data pipeline is composed — from source queries through aggregation to dashboard output — while still keeping the underlying embedded engine invisible.",
+      },
+      {
+        id: "dashboard-data-flow",
+        kicker: "4. Dashboard Data Flow",
+        title: "Source-to-dashboard data flow",
+        summary:
+          "The data flow model shows how raw records move from PostgreSQL databases and Excel files through normalization, SLA calculation, and aggregation before being published as a unified operational dashboard in the Neutrino workspace.",
+        bullets: [
+          "Input layer: ticket records are queried from PostgreSQL and reference data is parsed from Excel files for the configured data scope.",
+          "Normalization layer: schema mapping, field standardization, and timestamp alignment convert heterogeneous source formats into a common ticket model.",
+          "Calculation layer: SLA compliance percentages, aging metrics, and breach counts are computed against defined thresholds.",
+          "Aggregation layer: normalized records are grouped by status, priority, assigned team, service, and SLA state.",
+          "Output layer: the aggregated data is published to the Neutrino workspace as an interactive operational dashboard.",
+          "Alerting layer: the same aggregated data can trigger SLA breach notifications and escalation workflows.",
+        ],
+        diagram: "dashboard-dataflow",
+      },
+      {
+        id: "operational-value",
+        kicker: "5. Operational Outcome",
+        title: "Why centralized dashboarding matters",
+        summary:
+          "This documented capability proves Neutrino is performing real data analytics work, not just displaying static reports. It is connecting to live data sources, computing SLA compliance, and producing a unified operational view that gives teams immediate visibility into ticket health and service performance.",
+        bullets: [
+          "Eliminates the need for operators and managers to log into multiple systems to understand current ticket status.",
+          "Improves SLA compliance visibility by computing breach risk in real time against defined thresholds.",
+          "Produces a consistent, unified view that can be shared across teams for aligned operational understanding.",
+          "Connects the dashboard output to alerting and escalation workflows so SLA breaches trigger immediate action.",
+          "Positions Neutrino as the operational intelligence layer that transforms scattered data into actionable dashboards.",
         ],
       },
     ],
@@ -367,7 +546,7 @@ const DOC_PAGES: DocPage[] = [
   {
     slug: "stakeholder-communication",
     title: "Stress-Free Stakeholder Communication",
-    kicker: "Use Case 03",
+    kicker: "Use Case 04",
     summary:
       "Automate status updates, approval checks, and outbound notifications so operators can keep the right people informed without manually coordinating every message.",
     stats: [
@@ -614,7 +793,7 @@ const DOC_PAGES: DocPage[] = [
   },
 ];
 
-const ACTIVE_DOC_SLUGS = new Set(["overview", "automated-data-collection"]);
+const ACTIVE_DOC_SLUGS = new Set(["overview", "automated-data-collection", "rapid-root-cause-analysis", "centralized-dashboarding"]);
 
 function getActiveDocPages() {
   return DOC_PAGES.filter((page) => ACTIVE_DOC_SLUGS.has(page.slug));
