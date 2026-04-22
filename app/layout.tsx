@@ -12,7 +12,7 @@ const avenir = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Neutrino AI Ops Docs",
+  title: "Neutrino  Docs",
   description:
     "Interactive documentation for Neutrino AI Ops incident workflows, RCA, stakeholder communication, and platform architecture.",
 };

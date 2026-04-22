@@ -34,8 +34,7 @@ export function DocsSidebar({
   return (
     <aside className="sidebar panel">
       <div className="sidebar-brand">
-        <span className="brand-chip">Neutrino AI Ops</span>
-        <strong className="brand-title">Documentation</strong>
+        <strong className="brand-title">Neutrino Docs</strong>
         <span className="sidebar-copy">
           Neutrino AI-OPS capabilities documentation.
         </span>

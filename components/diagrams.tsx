@@ -833,7 +833,7 @@ export function PlatformDiagram() {
 
   return (
     <DiagramFrame
-      title="Neutrino AI Ops high-level design"
+      title="Neutrino high-level design"
       note="A layered HLD view that keeps the platform story business-readable while still mapping to real product surfaces."
     >
       <div className="platform-diagram-shell">
@@ -1430,46 +1430,83 @@ export function RcaChronologyDiagram() {
   );
 }
 
+const DASHBOARD_LOGOS = {
+  schedule: "https://cdn.activepieces.com/pieces/schedule.png",
+  postgres: "https://cdn.activepieces.com/pieces/postgres.png",
+  excel: "https://cdn.activepieces.com/pieces/microsoft-excel-365.png",
+  tables: "https://cdn.activepieces.com/pieces/new-core/tables.svg",
+  csv: "https://cdn.activepieces.com/pieces/new-core/csv.svg",
+  dataMapper: "https://cdn.activepieces.com/pieces/new-core/data-mapper.svg",
+  http: "https://cdn.activepieces.com/pieces/new-core/http.svg",
+  dataSummarizer: "https://cdn.activepieces.com/pieces/data-summarizer.svg",
+  approval: "https://cdn.activepieces.com/pieces/new-core/approvals.svg",
+  store: "https://cdn.activepieces.com/pieces/new-core/store.svg",
+  datadog: "https://cdn.activepieces.com/pieces/datadog.png",
+  azureOpenai: "https://cdn.activepieces.com/pieces/azure-openai.png",
+} as const;
+
+function dashboardWorkflowNodes(): Node<WorkflowCanvasNodeData>[] {
+  return [
+    { id: "schedule", type: "workflow", position: { x: 20, y: 200 }, data: { title: "Schedule", subtitle: "every-x-minutes", logoSrc: DASHBOARD_LOGOS.schedule, isTrigger: true, index: 1 } },
+    { id: "postgres", type: "workflow", position: { x: 260, y: 20 }, data: { title: "Postgres", subtitle: "run-query", logoSrc: DASHBOARD_LOGOS.postgres, index: 2 } },
+    { id: "excel", type: "workflow", position: { x: 260, y: 140 }, data: { title: "Excel 365", subtitle: "get-worksheet-rows", logoSrc: DASHBOARD_LOGOS.excel, index: 3 } },
+    { id: "tables", type: "workflow", position: { x: 260, y: 260 }, data: { title: "Tables", subtitle: "find-records", logoSrc: DASHBOARD_LOGOS.tables, index: 4 } },
+    { id: "csv", type: "workflow", position: { x: 260, y: 380 }, data: { title: "CSV", subtitle: "convert-csv-to-json", logoSrc: DASHBOARD_LOGOS.csv, index: 5 } },
+    { id: "mapper", type: "workflow", position: { x: 520, y: 200 }, data: { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: DASHBOARD_LOGOS.dataMapper, index: 6, multiTarget: true, fanIn: true } },
+    { id: "run", type: "workflow", position: { x: 780, y: 200 }, data: { title: "HTTP", subtitle: "POST /run (Agent Platform)", logoSrc: DASHBOARD_LOGOS.http, index: 7 } },
+    { id: "summarize", type: "workflow", position: { x: 1040, y: 200 }, data: { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: DASHBOARD_LOGOS.dataSummarizer, index: 8 } },
+    { id: "approval", type: "workflow", position: { x: 1300, y: 100 }, data: { title: "Approval", subtitle: "wait-for-approval", logoSrc: DASHBOARD_LOGOS.approval, index: 9 } },
+    { id: "store", type: "workflow", position: { x: 1300, y: 300 }, data: { title: "Store", subtitle: "store-put", logoSrc: DASHBOARD_LOGOS.store, index: 10 } },
+    { id: "publish", type: "workflow", position: { x: 1580, y: 100 }, data: { title: "HTTP", subtitle: "POST dashboard tile", logoSrc: DASHBOARD_LOGOS.http, index: 11 } },
+    { id: "datadog", type: "workflow", position: { x: 1580, y: 300 }, data: { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: DASHBOARD_LOGOS.datadog, index: 12 } },
+  ];
+}
+
+function dashboardWorkflowEdges(): Edge[] {
+  const t = RCA_EDGE_TOKENS;
+  return [
+    { id: "d-s-pg", source: "schedule", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-s-ex", source: "schedule", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-s-tb", source: "schedule", target: "tables", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-s-csv", source: "schedule", target: "csv", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-pg-m", source: "postgres", target: "mapper", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-ex-m", source: "excel", target: "mapper", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-tb-m", source: "tables", target: "mapper", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-csv-m", source: "csv", target: "mapper", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-m-run", source: "mapper", target: "run", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "tile prompt", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-run-sum", source: "run", target: "summarize", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "sql + rows + analysis", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-sum-ap", source: "summarize", target: "approval", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "DRAFT TILE", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "d-sum-st", source: "summarize", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "d-ap-st", source: "approval", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "APPROVE", ...t.labels, markerEnd: t.successMarker, style: t.success },
+    { id: "d-st-pub", source: "store", target: "publish", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.successMarker, style: t.success },
+    { id: "d-st-dd", source: "store", target: "datadog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+  ];
+}
+
 function DashboardWorkflowGraphDiagram() {
-  const nodes: Node<WorkflowCanvasNodeData>[] = [
-    { id: "trigger", type: "workflow", position: { x: 40, y: 190 }, data: { title: "Webhook", subtitle: "Scheduled refresh", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
-    { id: "postgres", type: "workflow", position: { x: 360, y: 18 }, data: { title: "HTTP", subtitle: "PostgreSQL query", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
-    { id: "excel", type: "workflow", position: { x: 360, y: 190 }, data: { title: "HTTP", subtitle: "Excel ingestion", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
-    { id: "api", type: "workflow", position: { x: 360, y: 362 }, data: { title: "HTTP", subtitle: "API fetch", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
-    { id: "normalize", type: "workflow", position: { x: 690, y: 190 }, data: { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 5, multiTarget: true } },
-    { id: "aggregate", type: "workflow", position: { x: 970, y: 190 }, data: { title: "Code", subtitle: "Aggregate + SLA calc", logoSrc: "/code-node.svg", index: 6 } },
-    { id: "branch", type: "workflow", position: { x: 1240, y: 190 }, data: { title: "Branch", subtitle: "Data complete?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
-    { id: "publish", type: "workflow", position: { x: 1555, y: 92 }, data: { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
-    { id: "retry", type: "workflow", position: { x: 1555, y: 288 }, data: { title: "Code", subtitle: "Request missing data", logoSrc: "/code-node.svg", index: "8B" } },
-  ];
-
-  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
-  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
-  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
-  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.35)" };
-  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
-  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
-  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
-
-  const edges: Edge[] = [
-    { id: "e-t-pg", source: "trigger", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-t-ex", source: "trigger", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-t-ap", source: "trigger", target: "api", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-pg-n", source: "postgres", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "e-ex-n", source: "excel", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-ap-n", source: "api", target: "normalize", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "e-n-ag", source: "normalize", target: "aggregate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-ag-br", source: "aggregate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "e-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "YES", ...labelProps, markerEnd: successMarker, style: successStyle },
-    { id: "e-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "NO", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
-  ];
-
   return (
-    <div className="workflow-flow-wrap">
-      <div className="workflow-lane lane-sources"><span>Data retrieval</span></div>
-      <div className="workflow-lane lane-processing"><span>Normalization and aggregation</span></div>
-      <div className="workflow-lane lane-branch"><span>Decision and publish</span></div>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.55, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+    <div className="workflow-flow-wrap dashboard-flow-wrap">
+      <div className="workflow-lane rca-lane dashboard-lane-retrieval"><span>Scheduled Retrieval</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-orchestration"><span>Orchestration</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-agent"><span>Agent call + aggregate</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-publish"><span>Review &amp; Publish</span></div>
+      <ReactFlow
+        nodes={dashboardWorkflowNodes()}
+        edges={dashboardWorkflowEdges()}
+        nodeTypes={workflowNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.14, minZoom: 0.4, maxZoom: 1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
+        preventScrolling={false}
+        proOptions={{ hideAttribution: true }}
+        className="workflow-flow"
+      >
         <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
       </ReactFlow>
     </div>
@@ -1477,47 +1514,63 @@ function DashboardWorkflowGraphDiagram() {
 }
 
 function DashboardDataFlowCanvasDiagram() {
+  const t = RCA_EDGE_TOKENS;
   const nodes: Array<Node<WorkflowCanvasNodeData | ArtifactNodeData>> = [
-    { id: "trigger", type: "workflow", position: { x: 50, y: 170 }, data: { title: "Webhook", subtitle: "Start dashboard refresh", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 } },
-    { id: "postgres", type: "workflow", position: { x: 330, y: 20 }, data: { title: "HTTP", subtitle: "PostgreSQL", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 } },
-    { id: "excel", type: "workflow", position: { x: 330, y: 170 }, data: { title: "HTTP", subtitle: "Excel files", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 3 } },
-    { id: "api", type: "workflow", position: { x: 330, y: 320 }, data: { title: "HTTP", subtitle: "External APIs", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 4 } },
-    { id: "normalize", type: "workflow", position: { x: 640, y: 90 }, data: { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 5, fanIn: true, multiTarget: true } },
-    { id: "aggregate", type: "workflow", position: { x: 640, y: 250 }, data: { title: "Code", subtitle: "Aggregate + SLA", logoSrc: "/code-node.svg", index: 6 } },
-    { id: "branch", type: "workflow", position: { x: 940, y: 170 }, data: { title: "Branch", subtitle: "Ready to publish?", logoSrc: "/branch-node.svg", index: 7, branch: true } },
-    { id: "publish", type: "workflow", position: { x: 1235, y: 95 }, data: { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: "8A" } },
-    { id: "retry", type: "workflow", position: { x: 1235, y: 265 }, data: { title: "Code", subtitle: "Retry fetch", logoSrc: "/code-node.svg", index: "8B" } },
-    { id: "dashboard-view", type: "artifact", position: { x: 1530, y: 95 }, data: { title: "Unified dashboard", subtitle: "Consolidated view of open tickets, SLA compliance, service health, and team workload in one Neutrino operator surface.", tone: "success" } },
+    { id: "schedule", type: "workflow", position: { x: 20, y: 200 }, data: { title: "Schedule", subtitle: "every-x-minutes", logoSrc: DASHBOARD_LOGOS.schedule, isTrigger: true, index: 1 } },
+    { id: "postgres", type: "workflow", position: { x: 260, y: 20 }, data: { title: "Postgres", subtitle: "run-query", logoSrc: DASHBOARD_LOGOS.postgres, index: 2 } },
+    { id: "excel", type: "workflow", position: { x: 260, y: 140 }, data: { title: "Excel 365", subtitle: "get-worksheet-rows", logoSrc: DASHBOARD_LOGOS.excel, index: 3 } },
+    { id: "tables", type: "workflow", position: { x: 260, y: 260 }, data: { title: "Tables", subtitle: "find-records", logoSrc: DASHBOARD_LOGOS.tables, index: 4 } },
+    { id: "csv", type: "workflow", position: { x: 260, y: 380 }, data: { title: "CSV", subtitle: "convert-csv-to-json", logoSrc: DASHBOARD_LOGOS.csv, index: 5 } },
+    { id: "mapper", type: "workflow", position: { x: 520, y: 200 }, data: { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: DASHBOARD_LOGOS.dataMapper, index: 6, multiTarget: true, fanIn: true } },
+    { id: "run", type: "workflow", position: { x: 780, y: 200 }, data: { title: "HTTP", subtitle: "POST /run", logoSrc: DASHBOARD_LOGOS.http, index: 7 } },
+    { id: "summarize", type: "workflow", position: { x: 1040, y: 200 }, data: { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: DASHBOARD_LOGOS.dataSummarizer, index: 8 } },
+    { id: "approval", type: "workflow", position: { x: 1300, y: 100 }, data: { title: "Approval", subtitle: "wait-for-approval", logoSrc: DASHBOARD_LOGOS.approval, index: 9 } },
+    { id: "store", type: "workflow", position: { x: 1300, y: 300 }, data: { title: "Store", subtitle: "store-put", logoSrc: DASHBOARD_LOGOS.store, index: 10 } },
+    { id: "datadog", type: "workflow", position: { x: 1580, y: 300 }, data: { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: DASHBOARD_LOGOS.datadog, index: 11 } },
+    { id: "tile", type: "artifact", position: { x: 1580, y: 80 }, data: { title: "Published dashboard tile", subtitle: "Cached { sql, rows, analysis } payload rendered in the Neutrino dashboard surface, with audit trail preserved in runs and run_events.", tone: "success" } },
   ];
 
-  const edgeStyle = { stroke: "rgba(216, 95, 47, 0.75)", strokeWidth: 2.5 };
-  const edgeMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(216, 95, 47, 0.75)" };
-  const dimStyle = { stroke: "rgba(21, 21, 21, 0.28)", strokeWidth: 2 };
-  const dimMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(21, 21, 21, 0.32)" };
-  const successStyle = { stroke: "rgba(19, 92, 87, 0.78)", strokeWidth: 2.5 };
-  const successMarker = { type: MarkerType.ArrowClosed as const, color: "rgba(19, 92, 87, 0.78)" };
-  const labelProps = { labelStyle: { fill: "#626262", fontSize: 11, fontWeight: 700 }, labelBgStyle: { fill: "#f8f3eb", fillOpacity: 1 }, labelBgPadding: [6, 3] as [number, number], labelBgBorderRadius: 8 };
-
   const edges: Edge[] = [
-    { id: "d-t-pg", source: "trigger", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-t-ex", source: "trigger", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-t-ap", source: "trigger", target: "api", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-pg-n", source: "postgres", target: "normalize", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "d-ex-n", source: "excel", target: "normalize", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-ap-ag", source: "api", target: "aggregate", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: dimMarker, style: dimStyle },
-    { id: "d-n-ag", source: "normalize", target: "aggregate", sourceHandle: "down", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-ag-br", source: "aggregate", target: "branch", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-br-pub", source: "branch", target: "publish", sourceHandle: "yes", targetHandle: "left", type: "smoothstep", label: "READY", ...labelProps, markerEnd: successMarker, style: successStyle },
-    { id: "d-br-ret", source: "branch", target: "retry", sourceHandle: "no", targetHandle: "left", type: "smoothstep", label: "RETRY", ...labelProps, markerEnd: edgeMarker, style: edgeStyle },
-    { id: "d-pub-view", source: "publish", target: "dashboard-view", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: successMarker, style: successStyle },
+    { id: "df-s-pg", source: "schedule", target: "postgres", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-s-ex", source: "schedule", target: "excel", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-s-tb", source: "schedule", target: "tables", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-s-csv", source: "schedule", target: "csv", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "df-pg-m", source: "postgres", target: "mapper", sourceHandle: "right", targetHandle: "left-top", type: "smoothstep", label: "rows", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-ex-m", source: "excel", target: "mapper", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-tb-m", source: "tables", target: "mapper", sourceHandle: "right", targetHandle: "left-mid", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "df-csv-m", source: "csv", target: "mapper", sourceHandle: "right", targetHandle: "left-bottom", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "df-m-run", source: "mapper", target: "run", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "prompt + schema", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-run-sum", source: "run", target: "summarize", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "sql + rows + analysis", ...t.labels, markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-sum-ap", source: "summarize", target: "approval", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
+    { id: "df-sum-st", source: "summarize", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.dimMarker, style: t.dim },
+    { id: "df-ap-st", source: "approval", target: "store", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "APPROVE", ...t.labels, markerEnd: t.successMarker, style: t.success },
+    { id: "df-st-tile", source: "store", target: "tile", sourceHandle: "right", targetHandle: "left", type: "smoothstep", label: "tile payload", ...t.labels, markerEnd: t.successMarker, style: t.success },
+    { id: "df-st-dd", source: "store", target: "datadog", sourceHandle: "right", targetHandle: "left", type: "smoothstep", markerEnd: t.primaryMarker, style: t.primary },
   ];
 
   return (
-    <div className="workflow-flow-wrap dataflow-flow-wrap">
-      <div className="workflow-lane lane-input"><span>Input nodes</span></div>
-      <div className="workflow-lane lane-processing dataflow-processing"><span>Processing nodes</span></div>
-      <div className="workflow-lane lane-output"><span>Output and dashboard view</span></div>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={workflowNodeTypes} fitView fitViewOptions={{ padding: 0.18, minZoom: 0.52, maxZoom: 1 }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} preventScrolling={false} proOptions={{ hideAttribution: true }} className="workflow-flow">
+    <div className="workflow-flow-wrap dataflow-flow-wrap dashboard-flow-wrap dashboard-dataflow-wrap">
+      <div className="workflow-lane rca-lane dashboard-lane-retrieval"><span>Scheduled Retrieval</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-orchestration"><span>Orchestration</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-agent"><span>Agent call + aggregate</span></div>
+      <div className="workflow-lane rca-lane dashboard-lane-publish"><span>Publish, persist &amp; emit</span></div>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={workflowNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.14, minZoom: 0.4, maxZoom: 1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+        zoomOnDoubleClick={false}
+        preventScrolling={false}
+        proOptions={{ hideAttribution: true }}
+        className="workflow-flow"
+      >
         <Background gap={24} size={1} color="rgba(21,21,21,0.06)" />
       </ReactFlow>
     </div>
@@ -1528,13 +1581,13 @@ export function DashboardHldDiagram() {
   return (
     <DiagramFrame
       title="Centralized dashboarding HLD"
-      note="A formal high-level design showing how PostgreSQL databases, Excel files, and APIs connect through Neutrino orchestration to produce a unified operational dashboard."
+      note="The three-layer architecture: first-party workflow pieces drive the refresh, the Neutrino Agent Platform orchestrates each tile as a governed run, and the Text-to-SQL sub-agent synthesizes SQL against the right schema."
     >
       <div className="source-grid">
         {[
-          { title: "PostgreSQL", copy: "Ticket records, incident tables, and resolution metrics" },
-          { title: "Excel", copy: "SLA definitions, service catalogs, and team ownership" },
-          { title: "APIs", copy: "External ticketing and monitoring system data" },
+          { title: "Postgres", copy: "Operational ticket and incident database read via run-query" },
+          { title: "Microsoft Excel 365", copy: "Live SLA and ownership workbooks read via get-worksheet-rows" },
+          { title: "Tables + CSV + HTTP", copy: "Internal reference records, uploaded CSV feeds, and external APIs" },
         ].map((source, index) => (
           <motion.div className="source-card" key={source.title} {...floatIn(index * 0.08)}>
             <strong>{source.title}</strong>
@@ -1542,25 +1595,50 @@ export function DashboardHldDiagram() {
           </motion.div>
         ))}
       </div>
-      <div className="builder-band-label">Neutrino dashboard assembly workflow</div>
+      <div className="builder-band-label">Workflow layer · scheduled refresh orchestration</div>
       <BuilderCanvasRows
         rows={[
           [
-            { title: "Webhook", subtitle: "Scheduled trigger", logoSrc: "https://cdn.activepieces.com/pieces/new-core/webhooks.svg", isTrigger: true, index: 1 },
-            { title: "HTTP", subtitle: "Query data sources", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 2 },
-            { title: "Code", subtitle: "Normalize + join", logoSrc: "/code-node.svg", index: 3 },
+            { title: "Schedule", subtitle: "every-x-minutes", logoSrc: DASHBOARD_LOGOS.schedule, isTrigger: true, index: 1 },
+            { title: "Postgres", subtitle: "run-query", logoSrc: DASHBOARD_LOGOS.postgres, index: 2 },
+            { title: "Excel 365", subtitle: "get-worksheet-rows", logoSrc: DASHBOARD_LOGOS.excel, index: 3 },
+            { title: "Tables", subtitle: "find-records", logoSrc: DASHBOARD_LOGOS.tables, index: 4 },
           ],
           [
-            { title: "Code", subtitle: "Aggregate + SLA calc", logoSrc: "/code-node.svg", index: 4 },
-            { title: "Branch", subtitle: "Validate output", logoSrc: "/branch-node.svg", index: 5 },
-            { title: "HTTP", subtitle: "Publish dashboard", logoSrc: "https://cdn.activepieces.com/pieces/new-core/http.svg", index: 6 },
+            { title: "CSV", subtitle: "convert-csv-to-json", logoSrc: DASHBOARD_LOGOS.csv, index: 5 },
+            { title: "Data Mapper", subtitle: "advanced-mapping", logoSrc: DASHBOARD_LOGOS.dataMapper, index: 6 },
+            { title: "HTTP", subtitle: "POST /run", logoSrc: DASHBOARD_LOGOS.http, index: 7 },
+            { title: "Data Summarizer", subtitle: "count-uniques", logoSrc: DASHBOARD_LOGOS.dataSummarizer, index: 8 },
+          ],
+          [
+            { title: "Approval", subtitle: "wait-for-approval", logoSrc: DASHBOARD_LOGOS.approval, index: 9 },
+            { title: "Store", subtitle: "store-put", logoSrc: DASHBOARD_LOGOS.store, index: 10 },
+            { title: "HTTP", subtitle: "POST dashboard tile", logoSrc: DASHBOARD_LOGOS.http, index: 11 },
+            { title: "Datadog", subtitle: "send-multiple-logs", logoSrc: DASHBOARD_LOGOS.datadog, index: 12 },
           ],
         ]}
         compact
       />
-      <motion.div className="publish-card" {...floatIn(0.48)}>
-        <strong>Unified operational dashboard</strong>
-        <span>The assembled output becomes one operator-facing dashboard showing open tickets, SLA compliance, service health, and team workload across all connected data sources.</span>
+      <div className="agent-band">
+        <div className="agent-band-label">Agent Platform layer · /run execution</div>
+        <div className="agent-band-grid">
+          <motion.div className="agent-card" {...floatIn(0.2)}>
+            <strong>Main Agent</strong>
+            <span>ReAct loop that routes to the query_database tool, handles HITL checkpoints, and persists each run in the runs table.</span>
+          </motion.div>
+          <motion.div className="agent-card" {...floatIn(0.3)}>
+            <strong>Text-to-SQL sub-agent</strong>
+            <span>Isolated sub_agent_id run. Selects tables, columns, and entities via ChromaDB, generates and validates SQL via Azure OpenAI, executes it, and produces a business analysis over the rows.</span>
+          </motion.div>
+          <motion.div className="agent-card" {...floatIn(0.4)}>
+            <strong>SSE + run_events</strong>
+            <span>Streams sub_agent.started, analysis_complete, and finish events. Writes every step to run_events for audit and live dashboard updates.</span>
+          </motion.div>
+        </div>
+      </div>
+      <motion.div className="publish-card" {...floatIn(0.52)}>
+        <strong>One tile, one agent run, one auditable artifact</strong>
+        <span>Every refreshed tile corresponds to a persisted run_id with its SQL, result rows, analysis, latency, and tokens — replayable, approvable, and attributable per refresh.</span>
       </motion.div>
     </DiagramFrame>
   );
@@ -1569,18 +1647,18 @@ export function DashboardHldDiagram() {
 export function DashboardWorkflowDiagram() {
   return (
     <DiagramFrame
-      title="Dashboard workflow node design"
-      note="A document-style node model showing how the implemented dashboard data pipeline is composed without exposing the embedded workflow product name."
+      title="Dashboard refresh workflow graph"
+      note="The executable graph of the refresh orchestration: four lanes, twelve real piece actions, with the HTTP POST /run call landing inside the Neutrino Agent Platform."
     >
       <DashboardWorkflowGraphDiagram />
       <div className="mini-grid">
         <motion.div className="mini-card" {...floatIn(0.44)}>
           <strong>Execution pattern</strong>
-          <span>The retrieval stage uses HTTP action nodes to query PostgreSQL and parse Excel files, while normalization and SLA calculation are modeled as Code steps, followed by a Branch validation gate.</span>
+          <span>Scheduled retrieval pieces fan into Data Mapper; the HTTP POST /run call hands the prompt to the Neutrino Agent Platform; the returned payload is aggregated, approved, and published.</span>
         </motion.div>
         <motion.div className="mini-card" {...floatIn(0.54)}>
           <strong>Result</strong>
-          <span>The final publish step writes a unified dashboard to the Neutrino workspace instead of leaving ticket and SLA data scattered across disconnected systems.</span>
+          <span>Each tile refresh produces a cached artifact and a dashboard publish rather than an opaque BI report. Every labeled box is a real first-party piece with a named action.</span>
         </motion.div>
       </div>
     </DiagramFrame>
@@ -1590,8 +1668,8 @@ export function DashboardWorkflowDiagram() {
 export function DashboardDataFlowDiagram() {
   return (
     <DiagramFrame
-      title="Dashboard data flow model"
-      note="A structured DFD view showing the movement of records from PostgreSQL, Excel, and APIs to a unified Neutrino dashboard output."
+      title="Prompt-to-tile data flow"
+      note="A structured DFD view showing how a scheduled trigger becomes a cached and published dashboard tile through workflow pieces, the agent platform call, and the observability emit."
     >
       <DashboardDataFlowCanvasDiagram />
     </DiagramFrame>
